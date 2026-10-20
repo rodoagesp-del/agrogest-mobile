@@ -8,7 +8,7 @@ let inventarioGlobal = [];
 let aplicacionesGlobal = [];
 let usosGlobal = [];
 
-// Mapa traductor para corregir almacenes en el CSV
+// Mapa traductor para corregir almacenes y evitar que desaparezcan productos
 const ALMACENES_MAP = {
     "ALMACÉN DE SAN BORJA": "Almacén de San Borja",
     "ALMACEN DE SAN BORJA": "Almacén de San Borja",
@@ -62,6 +62,28 @@ function normalizarAlmacen(alm) {
     return ALMACENES_MAP[upper] || upper;
 }
 
+// CORRECCIÓN: Formateador inteligente de fechas (Convierte ISO a MM/AAAA)
+function formatearFechaVencimiento(fechaStr) {
+    if (!fechaStr || fechaStr === "-" || fechaStr === "DD/MM/AAAA") return "-";
+    
+    // Si viene en formato ISO (ej. 2027-05-01T07:00:00.000Z)
+    if (fechaStr.includes("T")) {
+        let d = new Date(fechaStr);
+        let mes = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+        let anio = d.getUTCFullYear();
+        return `${mes}/${anio}`; // Formato MM/AAAA
+    }
+    
+    // Si viene en formato DD/MM/YYYY
+    let parts = fechaStr.split("/");
+    if (parts.length === 3) {
+        let mes = parts[1].padStart(2, '0');
+        return `${mes}/${parts[2]}`; // Formato MM/AAAA
+    }
+    
+    return fechaStr;
+}
+
 function procesarDatos(data) {
     let stockMap = {};
     aplicacionesGlobal = [];
@@ -72,7 +94,10 @@ function procesarDatos(data) {
         let pa = (row["Principio Activo"] || "").trim().toUpperCase();
         let cat = (row["Categoría"] || "").trim().toUpperCase();
         let lote = (row["Lote"] || "").trim().toUpperCase();
-        let venc = (row["Fecha Vencimiento"] || "").trim();
+        
+        let vencRaw = (row["Fecha Vencimiento"] || "").trim();
+        let venc = formatearFechaVencimiento(vencRaw);
+        
         let um = (row["Unidad Medida"] || "").trim();
         
         let origenRaw = (row["Origen"] || "").trim();
@@ -128,9 +153,10 @@ function procesarDatos(data) {
     inventarioGlobal = Object.values(stockMap).filter(item => item.stock > 0);
     inventarioGlobal.sort((a, b) => {
         let parseDate = (d) => {
-            if (!d || d === "-" || d === "DD/MM/AAAA") return new Date(9999, 11, 31);
+            if (!d || d === "-") return new Date(9999, 11, 31);
             let parts = d.split("/");
-            return new Date(parts[2], parts[1] - 1, parts[0]);
+            if (parts.length === 2) return new Date(parts[1], parts[0] - 1, 1); // MM/AAAA
+            return new Date(9999, 11, 31);
         };
         return parseDate(a.venc) - parseDate(b.venc);
     });
