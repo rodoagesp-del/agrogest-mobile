@@ -8,6 +8,19 @@ let inventarioGlobal = [];
 let aplicacionesGlobal = [];
 let usosGlobal = [];
 
+// Mapa traductor para corregir almacenes en el CSV
+const ALMACENES_MAP = {
+    "ALMACÉN DE SAN BORJA": "Almacén de San Borja",
+    "ALMACEN DE SAN BORJA": "Almacén de San Borja",
+    "ALMACÉN DE QUILMANA": "Almacén de Quilmana",
+    "ALMACEN DE QUILMANA": "Almacén de Quilmana",
+    "ALMACÉN DE QUILMANÁ": "Almacén de Quilmana",
+    "ALMACEN DE QUILMANÁ": "Almacén de Quilmana",
+    "ALMACÉN FUNDO": "Almacén Fundo",
+    "ALMACEN FUNDO": "Almacén Fundo",
+    "PROHASS": "Almacén de San Borja" // Auto-corrige orígenes externos
+};
+
 document.addEventListener("DOMContentLoaded", initApp);
 
 function initApp() {
@@ -15,9 +28,10 @@ function initApp() {
         download: true,
         header: true,
         skipEmptyLines: true,
+        transformHeader: h => h.trim(), // CORRECCIÓN: Limpia espacios invisibles
         complete: function(results) {
             procesarDatos(results.data);
-            cargarUsos(); // Carga los usos en segundo plano
+            cargarUsos(); 
         },
         error: function(error) {
             document.getElementById('loading').innerText = "Error de conexión. Intente en modo online.";
@@ -34,6 +48,7 @@ function cargarUsos() {
         download: true,
         header: true,
         skipEmptyLines: true,
+        transformHeader: h => h.trim(),
         complete: function(results) {
             usosGlobal = results.data;
             document.getElementById('loading').style.display = 'none';
@@ -41,20 +56,30 @@ function cargarUsos() {
     });
 }
 
+function normalizarAlmacen(alm) {
+    if (!alm) return "";
+    let upper = alm.trim().toUpperCase();
+    return ALMACENES_MAP[upper] || upper;
+}
+
 function procesarDatos(data) {
     let stockMap = {};
     aplicacionesGlobal = [];
 
     data.forEach(row => {
-        let op = (row["Operación"] || "").trim();
+        let op = (row["Operación"] || "").trim().toUpperCase();
         let prod = (row["Producto"] || "").trim().toUpperCase();
         let pa = (row["Principio Activo"] || "").trim().toUpperCase();
         let cat = (row["Categoría"] || "").trim().toUpperCase();
         let lote = (row["Lote"] || "").trim().toUpperCase();
         let venc = (row["Fecha Vencimiento"] || "").trim();
         let um = (row["Unidad Medida"] || "").trim();
-        let origen = (row["Origen"] || "").trim();
-        let destino = (row["Destino"] || "").trim();
+        
+        let origenRaw = (row["Origen"] || "").trim();
+        let destinoRaw = (row["Destino"] || "").trim();
+        
+        let origen = normalizarAlmacen(origenRaw);
+        let destino = normalizarAlmacen(destinoRaw);
         
         let cantRaw = row["Total_Cantidad"] || row["Cantidad"] || 0;
         let cantidad = parseFloat(cantRaw) || 0;
@@ -62,12 +87,12 @@ function procesarDatos(data) {
         if (!prod || cantidad === 0) return;
 
         // Registro de aplicaciones en campo
-        if (op === "Salida" && destino === "Zonas de Cultivo") {
+        if (op === "SALIDA" && destinoRaw.toUpperCase() === "ZONAS DE CULTIVO") {
             aplicacionesGlobal.push({
                 fecha: row["Fecha Inventario"] || row["Fecha"],
                 producto: prod,
                 lote: lote,
-                zona: origen,
+                zona: origenRaw,
                 usos: row["Objetivo Fitosanitario"],
                 cantidad: cantidad,
                 um: um
@@ -86,14 +111,14 @@ function procesarDatos(data) {
             stockMap[key].stock += qty;
         }
 
-        if (["Entrada", "Traslado Entrada", "Traslado Entrada Campo"].includes(op)) {
+        if (["ENTRADA", "TRASLADO ENTRADA", "TRASLADO ENTRADA CAMPO"].includes(op)) {
             modificarStock(destino, cantidad);
-        } else if (["Salida", "Traslado Salida"].includes(op)) {
+        } else if (["SALIDA", "TRASLADO SALIDA"].includes(op)) {
             modificarStock(origen, -cantidad);
-        } else if (op === "Traslado") {
+        } else if (op === "TRASLADO") {
             modificarStock(origen, -cantidad);
             modificarStock(destino, cantidad);
-        } else if (op === "Ajuste") {
+        } else if (op === "AJUSTE") {
             let almAjuste = destino || origen;
             let signo = (row["Observaciones"] || "").toLowerCase().includes("sobrante") ? 1 : -1;
             modificarStock(almAjuste, cantidad * signo);
@@ -128,7 +153,6 @@ function filtrarDatos() {
         if (matchText && matchCat && matchAlm) {
             let badgeClass = item.almacen.includes("San Borja") ? "san-borja" : item.almacen.includes("Quilmana") ? "quilmana" : "fundo";
             
-            // Tarjeta interactiva con onclick
             htmlStock += `
                 <div class="card" onclick="mostrarDetalles('${item.producto.replace(/'/g, "\\'")}')" style="cursor: pointer; position: relative;">
                     <div class="icono-info">ℹ️</div>
@@ -208,7 +232,7 @@ function mostrarDetalles(productoNombre) {
     } else {
         let htmlUsos = "";
         usosDelProducto.forEach(u => {
-            let uso = u["Uso_Objetivo"] || "Uso General";
+            let uso = (u["Uso_Objetivo"] || u["Uso/Objetivo"] || "Uso General").trim();
             let detalles = u["Detalles"] || "";
             htmlUsos += `
                 <div class="uso-item">
@@ -227,7 +251,6 @@ function cerrarModal() {
     document.getElementById('detallesModal').style.display = 'none';
 }
 
-// Cierra el modal si el usuario toca la pantalla oscura fuera del cuadro
 window.onclick = function(event) {
     let modal = document.getElementById('detallesModal');
     if (event.target == modal) {
