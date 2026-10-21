@@ -172,7 +172,8 @@ function filtrarDatos() {
 
     let htmlStock = "";
     inventarioGlobal.forEach(item => {
-        let matchText = `${item.producto} ${item.lote}`.includes(q);
+        // CORRECCIÓN: Se agrega item.pa (Principio Activo) al bloque de búsqueda móvil
+        let matchText = `${item.producto} ${item.lote} ${item.pa}`.includes(q);
         let matchCat = (cat === "TODAS" || item.cat === cat);
         let matchAlm = (alm === "TODOS" || item.almacen === alm);
 
