@@ -28,7 +28,7 @@ function initApp() {
         download: true,
         header: true,
         skipEmptyLines: true,
-        transformHeader: h => h.trim(), // CORRECCIÓN: Limpia espacios invisibles
+        transformHeader: h => h.trim(), // Limpia espacios invisibles
         complete: function(results) {
             procesarDatos(results.data);
             cargarUsos(); 
@@ -62,7 +62,7 @@ function normalizarAlmacen(alm) {
     return ALMACENES_MAP[upper] || upper;
 }
 
-// CORRECCIÓN: Formateador inteligente de fechas (Convierte ISO a MM/AAAA)
+// Formateador inteligente de fechas (Convierte ISO a MM/AAAA)
 function formatearFechaVencimiento(fechaStr) {
     if (!fechaStr || fechaStr === "-" || fechaStr === "DD/MM/AAAA") return "-";
     
@@ -93,6 +93,7 @@ function procesarDatos(data) {
         let prod = (row["Producto"] || "").trim().toUpperCase();
         let pa = (row["Principio Activo"] || "").trim().toUpperCase();
         let cat = (row["Categoría"] || "").trim().toUpperCase();
+        let obj = (row["Objetivo Fitosanitario"] || "").trim().toUpperCase(); // Capturamos el Objetivo Fitosanitario
         let lote = (row["Lote"] || "").trim().toUpperCase();
         
         let vencRaw = (row["Fecha Vencimiento"] || "").trim();
@@ -131,7 +132,7 @@ function procesarDatos(data) {
             if (!ALMACENES.includes(almacen)) return;
             let key = `${prod}|${lote}|${almacen}`;
             if (!stockMap[key]) {
-                stockMap[key] = { producto: prod, pa: pa, cat: cat, lote: lote, venc: venc, almacen: almacen, um: um, stock: 0 };
+                stockMap[key] = { producto: prod, pa: pa, cat: cat, obj: obj, lote: lote, venc: venc, almacen: almacen, um: um, stock: 0 };
             }
             stockMap[key].stock += qty;
         }
@@ -167,15 +168,22 @@ function procesarDatos(data) {
 
 function filtrarDatos() {
     let q = document.getElementById('searchInput').value.toUpperCase();
-    let cat = document.getElementById('filtroCategoria').value;
+    let filtroCatRaw = document.getElementById('filtroCategoria').value;
     let alm = document.getElementById('filtroAlmacen').value;
 
     let htmlStock = "";
     inventarioGlobal.forEach(item => {
-        // CORRECCIÓN: Se agrega item.pa (Principio Activo) al bloque de búsqueda móvil
         let matchText = `${item.producto} ${item.lote} ${item.pa}`.includes(q);
-        let matchCat = (cat === "TODAS" || item.cat === cat);
         let matchAlm = (alm === "TODOS" || item.almacen === alm);
+        
+        // Lógica de filtrado anidado: CAT: filtra por Categoría, SUB: filtra por Objetivo Fitosanitario
+        let matchCat = true;
+        if (filtroCatRaw.startsWith("CAT:")) {
+            matchCat = (item.cat === filtroCatRaw.split(":")[1]);
+        } else if (filtroCatRaw.startsWith("SUB:")) {
+            matchCat = (item.obj === filtroCatRaw.split(":")[1]);
+        }
+        // Si es "ALL", matchCat queda true (muestra todo)
 
         if (matchText && matchCat && matchAlm) {
             let badgeClass = item.almacen.includes("San Borja") ? "san-borja" : item.almacen.includes("Quilmana") ? "quilmana" : "fundo";

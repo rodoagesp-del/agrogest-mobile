@@ -17,14 +17,22 @@
     </header>
 
     <div class="controls">
-        <input type="text" id="searchInput" placeholder="🔍 Buscar producto o lote..." onkeyup="filtrarDatos()">
+        <input type="text" id="searchInput" placeholder="🔍 Buscar producto, lote o P.A..." onkeyup="filtrarDatos()">
         <div class="filters">
             <select id="filtroCategoria" onchange="filtrarDatos()">
-                <option value="TODAS">Categoría: Todas</option>
-                <option value="SUELO">Suelo</option>
-                <option value="PESTICIDAS">Pesticidas</option>
-                <option value="FOLIARES">Foliares</option>
-                <option value="OTROS">Otros</option>
+                <option value="ALL">Categoría: Todas</option>
+                <option value="CAT:SUELO">Suelo</option>
+                <option value="CAT:PESTICIDAS">Pesticidas</option>
+                <option value="SUB:ACARICIDAS">&nbsp;&nbsp;&nbsp;↳ Acaricidas</option>
+                <option value="SUB:FUNGICIDAS">&nbsp;&nbsp;&nbsp;↳ Fungicidas</option>
+                <option value="SUB:HERBICIDAS">&nbsp;&nbsp;&nbsp;↳ Herbicidas</option>
+                <option value="SUB:INSECTICIDAS">&nbsp;&nbsp;&nbsp;↳ Insecticidas</option>
+                <option value="CAT:FOLIARES">Foliares</option>
+                <option value="SUB:BIOESTIMULANTES">&nbsp;&nbsp;&nbsp;↳ Bioestimulantes</option>
+                <option value="SUB:CORRECTORES">&nbsp;&nbsp;&nbsp;↳ Correctores</option>
+                <option value="SUB:NUTRIENTES">&nbsp;&nbsp;&nbsp;↳ Nutrientes</option>
+                <option value="SUB:REGULADORES DE CRECIMIENTO">&nbsp;&nbsp;&nbsp;↳ Reg. Crecimiento</option>
+                <option value="CAT:OTROS">Otros</option>
             </select>
             <select id="filtroAlmacen" onchange="filtrarDatos()">
                 <option value="TODOS">Almacén: Todos</option>
