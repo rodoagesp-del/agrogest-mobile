@@ -335,6 +335,7 @@ function procesarDrop(evt) {
         obj: evt.item.dataset.obj,
         lote: evt.item.dataset.lote,
         venc: evt.item.dataset.venc,
+        vencRaw: evt.item.dataset.venc, // CORRECCIÓN: guardamos también como vencRaw
         um: evt.item.dataset.um,
         formato: evt.item.dataset.formato,
         cxb: parseFloat(evt.item.dataset.cxb),
@@ -434,7 +435,8 @@ function ejecutarDrag() {
         if (usoActual && !usosSeleccionadosArray.includes(usoActual)) usosSeleccionadosArray.push(usoActual);
         let usoFinal = usosSeleccionadosArray.length > 0 ? usosSeleccionadosArray.join(", ") : "-";
 
-        fila = [obtenerFechaHoy(), "Salida", d.cat, usoFinal, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.venc, d.lote, d.origen, zona, "Aplicación PWA"];
+        // CORRECCIÓN: Se usa d.vencRaw en lugar de d.venc (columna 14)
+        fila = [obtenerFechaHoy(), "Salida", d.cat, usoFinal, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.vencRaw, d.lote, d.origen, zona, "Aplicación PWA"];
     } else {
         // Traslado entre almacenes (Solo bultos completos)
         bultos = parseInt(inputVal); // Forzar a número entero
@@ -453,7 +455,8 @@ function ejecutarDrag() {
             obs = "Devolución PWA (Vicente)";
         }
 
-        fila = [obtenerFechaHoy(), "Traslado", d.cat, d.obj, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.venc, d.lote, d.origen, d.destino, obs];
+        // CORRECCIÓN: Se usa d.vencRaw en lugar de d.venc (columna 14)
+        fila = [obtenerFechaHoy(), "Traslado", d.cat, d.obj, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.vencRaw, d.lote, d.origen, d.destino, obs];
     }
 
     cerrarDragModal();
