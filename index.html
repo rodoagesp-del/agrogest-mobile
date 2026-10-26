@@ -17,7 +17,7 @@
     </header>
 
     <div class="controls">
-        <input type="text" id="searchInput" placeholder="🔍 Buscar producto, lote o P.A..." onkeyup="filtrarDatos()">
+        <input type="text" id="searchInput" placeholder="🔍 Buscar producto, lote, P.A. o zona..." onkeyup="filtrarDatos()">
         <div class="filters">
             <select id="filtroCategoria" onchange="filtrarDatos()">
                 <option value="ALL">Categoría: Todas</option>
@@ -40,18 +40,37 @@
                 <option value="Almacén de Quilmana">Quilmaná</option>
                 <option value="Almacén Fundo">Fundo</option>
             </select>
+            <!-- NUEVO FILTRO DE CAMPOS -->
+            <select id="filtroCampo" onchange="filtrarDatos()" style="display: none;">
+                <option value="TODOS">Campo: Todos</option>
+                <!-- Se llenará dinámicamente con JS -->
+            </select>
         </div>
     </div>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('stock')">📦 Stock (FIFO)</button>
-        <button class="tab-btn" onclick="switchTab('campo')">🚜 Aplicaciones Campo</button>
+        <button class="tab-btn active" onclick="switchTab('stock')">📦 Stock</button>
+        <button class="tab-btn" onclick="switchTab('campo')">🚜 Campo</button>
+        <button class="tab-btn" onclick="switchTab('reporte')">📊 Reporte</button>
     </div>
 
     <main id="app-content">
-        <div id="loading" class="loading">Sincronizando con almacenes...</div>
+        <div id="loading" class="loading">Sincronizando bases de datos...</div>
+
         <div id="stockView" class="view-section active"></div>
         <div id="campoView" class="view-section" style="display: none;"></div>
+
+        <!-- Nueva vista de Reportes -->
+        <div id="reporteView" class="view-section" style="display: none;">
+            <div class="report-filters">
+                <label>Desde: <input type="date" id="fechaDesde"></label>
+                <label>Hasta: <input type="date" id="fechaHasta"></label>
+                <button onclick="generarReporteCampo()" class="btn-generar">Generar Reporte</button>
+            </div>
+            <div id="reporteContenido" style="margin-top: 15px; overflow-x: auto;">
+                <div class="loading">Seleccione un rango de fechas y presione "Generar Reporte".</div>
+            </div>
+        </div>
     </main>
 
     <!-- Modal Flotante de Especificaciones -->
