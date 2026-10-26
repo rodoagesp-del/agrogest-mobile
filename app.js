@@ -3,7 +3,6 @@
 // ======================================================
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQpvGU5GwEfk6hK5A9eiO5-moXq9gxlxywtrXEfc63vaxGw6xDGAsCVkiUEJUH3uiBz1MrxVFqgKKaL/pub?gid=1727735409&single=true&output=csv';
 const USOS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGndkXKibFfCovjtznlsbD4V9AiU593xd_3KSwoLOjppTMBFiEHWaG2zEMDWVPkSnUno7wdHU8Cca-/pub?gid=1408750423&single=true&output=csv';
-// CORRECCIÓN: Se usa "output=csv" en lugar de pubhtml para leer correctamente la data de zonas
 const ZONAS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRBeeBtO4H6JIiEGwzlQLDVPIB2tWO-N83j6xt34j4RCqhz_1FF0jiWkXLbcKQy7naM6u_GRoLveSp7/pub?gid=1473578018&single=true&output=csv';
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzPzZau7f4ulrQqa4BpglpQjTMJ7h4KmDgHyJu9zNxKo5nLTKgOVHj-hp-B3725Buhl6A/exec";
@@ -80,7 +79,6 @@ function cargarZonas() {
                 filtroCamp.appendChild(opt2);
             });
 
-            // Si la vista de reporte está activa, refrescamos el reporte para inyectar árboles
             if (document.getElementById('reporteView').style.display === 'block') {
                 generarReporteCampo();
             }
@@ -95,8 +93,21 @@ function normalizarAlmacen(alm) {
     return ALMACENES_MAP[upper] || upper;
 }
 
+// Limpiamos los datos a formato DD/MM/YYYY para que suban bien limpios al Excel
+function estandarizarFechaParaSheet(fechaStr) {
+    if (!fechaStr || fechaStr === "-" || fechaStr === "DD/MM/AAAA") return "";
+    if (fechaStr.includes("T")) {
+        let d = new Date(fechaStr);
+        let dia = d.getUTCDate().toString().padStart(2, '0');
+        let mes = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+        let anio = d.getUTCFullYear();
+        return `${dia}/${mes}/${anio}`;
+    }
+    return fechaStr;
+}
+
 function formatearFechaVencimiento(fechaStr) {
-    if (!fechaStr || fechaStr === "-" || fechaStr === "DD/MM/AAAA") return "-";
+    if (!fechaStr || fechaStr === "-") return "-";
     if (fechaStr.includes("T")) {
         let d = new Date(fechaStr);
         let mes = (d.getUTCMonth() + 1).toString().padStart(2, '0');
@@ -121,7 +132,11 @@ function procesarDatos(data) {
         let cat = (row["Categoría"] || "").trim().toUpperCase();
         let obj = (row["Objetivo Fitosanitario"] || "").trim().toUpperCase();
         let lote = (row["Lote"] || "").trim().toUpperCase();
-        let venc = (row["Fecha Vencimiento"] || "").trim();
+        
+        let vencOriginal = (row["Fecha Vencimiento"] || "").trim();
+        let vencLimpia = estandarizarFechaParaSheet(vencOriginal);
+        let vencVisual = formatearFechaVencimiento(vencOriginal);
+        
         let um = (row["Unidad Medida"] || "").trim();
         let formato = (row["Formato"] || "").trim();
 
@@ -135,7 +150,6 @@ function procesarDatos(data) {
 
         if (!prod || cantidad === 0) return;
 
-        // Capturar aplicaciones en campo (salidas que no van a almacenes)
         if (op === "SALIDA" && !["Almacén de San Borja", "Almacén de Quilmana", "Almacén Fundo"].includes(destino)) {
             aplicacionesGlobal.push({
                 fecha: row["Fecha Inventario"] || row["Fecha"],
@@ -151,7 +165,7 @@ function procesarDatos(data) {
             let key = `${prod}|${lote}|${almacen}`;
             if (!stockMap[key]) {
                 stockMap[key] = {
-                    producto: prod, pa: pa, cat: cat, obj: obj, lote: lote, vencRaw: venc, venc: formatearFechaVencimiento(venc),
+                    producto: prod, pa: pa, cat: cat, obj: obj, lote: lote, vencRaw: vencLimpia, venc: vencVisual,
                     almacen: almacen, um: um, formato: formato, cxb: cxb, stock: 0
                 };
             }
@@ -170,7 +184,6 @@ function procesarDatos(data) {
 
     inventarioGlobal = Object.values(stockMap).filter(item => item.stock > 0.001);
 
-    // Ordenar por vencimiento (FEFO)
     inventarioGlobal.sort((a, b) => {
         let parseDate = (d) => {
             if (!d || d === "-") return new Date(9999, 11, 31);
@@ -194,7 +207,6 @@ function filtrarDatos() {
     let alm = document.getElementById('filtroAlmacen').value;
     let filtroCamp = document.getElementById('filtroCampo') ? document.getElementById('filtroCampo').value : "TODOS";
 
-    // --- RECONSTRUCCIÓN DEL STOCK NORMAL Y EL KANBAN ---
     let htmlStock = "";
     document.getElementById('kb-sanborja').innerHTML = "";
     document.getElementById('kb-quilmana').innerHTML = "";
@@ -229,10 +241,8 @@ function filtrarDatos() {
                     </div>
                 </div>`;
 
-            // 1. Agregar a la lista clásica vertical
             htmlStock += cardHTML;
 
-            // 2. Agregar a las columnas del Kanban (para Administradores)
             if (item.almacen === "Almacén de San Borja") document.getElementById('kb-sanborja').innerHTML += cardHTML;
             else if (item.almacen === "Almacén de Quilmana") document.getElementById('kb-quilmana').innerHTML += cardHTML;
             else if (item.almacen === "Almacén Fundo") document.getElementById('kb-fundo').innerHTML += cardHTML;
@@ -242,10 +252,8 @@ function filtrarDatos() {
     if(!htmlStock) htmlStock = "<div class='loading'>No se encontraron productos en stock.</div>";
     document.getElementById('stockView').innerHTML = htmlStock;
 
-    // Iniciar funciones de arrastre si estamos en Admin
     if (usuarioActual) initKanban();
 
-    // --- FILTRADO DE HISTORIAL DE CAMPO ---
     let htmlCampo = "";
     aplicacionesGlobal.forEach(item => {
         let matchText = `${item.producto} ${item.lote} ${item.zona} ${item.usos}`.includes(q);
@@ -287,9 +295,9 @@ function initKanban() {
             kanbanInstances.push(new Sortable(el, {
                 group: 'shared',
                 animation: 150,
-                delay: 200, // Previene arrastre accidental al hacer scroll normal
+                delay: 200,
                 delayOnTouchOnly: true,
-                forceFallback: true, // Crucial para arrastre vertical fluido en móviles
+                forceFallback: true,
                 scroll: true,
                 bubbleScroll: true,
                 onEnd: procesarDrop
@@ -301,8 +309,6 @@ function initKanban() {
 function procesarDrop(evt) {
     let origenId = evt.from.id;
     let destinoId = evt.to.id;
-
-    // Regresar la tarjeta visualmente (solo se mueve si se confirma)
     evt.from.insertBefore(evt.item, evt.from.children[evt.oldIndex]);
 
     if (origenId === destinoId) return;
@@ -315,7 +321,6 @@ function procesarDrop(evt) {
     let origenAlm = evt.from.getAttribute('data-alm');
     let destinoAlm = evt.to.getAttribute('data-alm');
 
-    // Validación de permisos por usuario
     if (usuarioActual === "RUFINO") {
         if (!(origenAlm === "Almacén de Quilmana" && destinoAlm === "Almacén Fundo")) {
             alert("Rufino: Su usuario solo tiene autorización para trasladar desde Quilmaná hacia Fundo.");
@@ -330,7 +335,6 @@ function procesarDrop(evt) {
         }
     }
 
-    // Capturar datos de la tarjeta
     dragDataActual = {
         producto: evt.item.dataset.prod,
         pa: evt.item.dataset.pa,
@@ -357,7 +361,6 @@ function abrirModalConfirmacion() {
     document.getElementById("dragTitle").innerText = esAplicacion ? "🌿 Aplicación en Campo" : "⚠️ Confirmar Traslado";
     document.getElementById("dragInfo").innerHTML = `<strong>${d.producto}</strong> (Lote: ${d.lote})<br>Ruta: <span style="color:var(--primary);">${d.origen} ➔ ${d.destino}</span>`;
 
-    // Lógica dinámica de input: Bultos o Volumen
     if (esAplicacion) {
         document.getElementById("dragLabelCantidad").innerText = "Cantidad a aplicar (Volumen/Masa):";
         document.getElementById("dragUm").innerText = d.um;
@@ -382,7 +385,7 @@ function abrirModalConfirmacion() {
     } else {
         document.getElementById("dragLabelCantidad").innerText = `¿Cuántos ${d.formato}s desea trasladar?:`;
         document.getElementById("dragUm").innerText = `(${d.formato}s)`;
-        document.getElementById("dragCantidad").step = "1"; // Forzar enteros
+        document.getElementById("dragCantidad").step = "1";
 
         let maxBultos = d.cxb > 0 ? Math.floor(d.stock / d.cxb) : d.stock;
         document.getElementById("dragCantidad").value = maxBultos;
@@ -423,7 +426,6 @@ function ejecutarDrag() {
     let fila;
 
     if (d.destino === "Zonas de Cultivo") {
-        // Aplicación en Campo (Volumen/Masa)
         cant = inputVal;
         if (cant > d.stock) {
             alert(`No puede aplicar más del stock disponible (${d.stock} ${d.um}).`);
@@ -440,8 +442,7 @@ function ejecutarDrag() {
 
         fila = [obtenerFechaHoy(), "Salida", d.cat, usoFinal, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.vencRaw, d.lote, d.origen, zona, "Aplicación PWA"];
     } else {
-        // Traslado entre almacenes (Solo bultos completos)
-        bultos = parseInt(inputVal); // Forzar a número entero
+        bultos = parseInt(inputVal);
         let maxBultos = d.cxb > 0 ? Math.floor(d.stock / d.cxb) : d.stock;
 
         if (bultos > maxBultos) {
@@ -450,8 +451,6 @@ function ejecutarDrag() {
         }
 
         cant = d.cxb > 0 ? bultos * d.cxb : bultos;
-
-        // Validación de retorno específico de Vicente
         let obs = "Traslado PWA";
         if (d.origen === "Almacén Fundo" && d.destino === "Almacén de Quilmana") {
             obs = "Devolución PWA (Vicente)";
@@ -465,7 +464,7 @@ function ejecutarDrag() {
 }
 
 // ======================================================
-// NAVEGACIÓN
+// NAVEGACIÓN Y TABS
 // ======================================================
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -499,12 +498,11 @@ function switchTab(tab) {
 }
 
 // ======================================================
-// SEGURIDAD, PERFILES Y VISIBILIDAD DE COLUMNAS
+// SEGURIDAD
 // ======================================================
 function verificarPin() {
     let pin = document.getElementById("pinInput").value.trim().toUpperCase();
 
-    // Configuración de visibilidad de columnas por Rol
     if (pin === "R98U") {
         usuarioActual = "RUFINO";
         document.getElementById("col-sanborja").style.display = "none";
@@ -529,7 +527,7 @@ function verificarPin() {
     document.getElementById("adminBienvenida").innerText = `¡Bienvenido, ${usuarioActual}!`;
     document.getElementById("tabAdmin").innerHTML = `👤 ${usuarioActual}`;
 
-    filtrarDatos(); // Recargar Kanban con columnas filtradas
+    filtrarDatos();
 }
 
 function cerrarSesionAdmin() {
@@ -579,7 +577,7 @@ function generarReporteCampo() {
 }
 
 // ======================================================
-// COMUNICACIÓN CON GOOGLE SHEETS
+// API Y GOOGLE SHEETS
 // ======================================================
 function obtenerFechaHoy() {
     let hoy = new Date();
@@ -603,7 +601,7 @@ function enviarGoogleSheets(filaArray) {
 }
 
 // ======================================================
-// MODAL DE DETALLES AGRONÓMICOS
+// MODAL DETALLES
 // ======================================================
 function mostrarDetalles(prodNombre) {
     let usosProd = usosGlobal.filter(u => (u["Producto"] || "").trim().toUpperCase() === prodNombre);
