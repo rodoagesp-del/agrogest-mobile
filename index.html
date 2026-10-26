@@ -7,7 +7,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2C3E50">
     <link rel="stylesheet" href="style.css">
-    <!-- PapaParse para procesar el CSV de forma segura -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -40,10 +39,8 @@
                 <option value="Almacén de Quilmana">Quilmaná</option>
                 <option value="Almacén Fundo">Fundo</option>
             </select>
-            <!-- NUEVO FILTRO DE CAMPOS -->
             <select id="filtroCampo" onchange="filtrarDatos()" style="display: none;">
                 <option value="TODOS">Campo: Todos</option>
-                <!-- Se llenará dinámicamente con JS -->
             </select>
         </div>
     </div>
@@ -52,6 +49,7 @@
         <button class="tab-btn active" onclick="switchTab('stock')">📦 Stock</button>
         <button class="tab-btn" onclick="switchTab('campo')">🚜 Campo</button>
         <button class="tab-btn" onclick="switchTab('reporte')">📊 Reporte</button>
+        <button class="tab-btn" onclick="switchTab('admin')">🔐 Admin</button>
     </div>
 
     <main id="app-content">
@@ -59,8 +57,7 @@
 
         <div id="stockView" class="view-section active"></div>
         <div id="campoView" class="view-section" style="display: none;"></div>
-
-        <!-- Nueva vista de Reportes -->
+        
         <div id="reporteView" class="view-section" style="display: none;">
             <div class="report-filters">
                 <label>Desde: <input type="date" id="fechaDesde"></label>
@@ -71,6 +68,69 @@
                 <div class="loading">Seleccione un rango de fechas y presione "Generar Reporte".</div>
             </div>
         </div>
+
+        <!-- Nueva vista de Administrador (Operarios) -->
+        <div id="adminView" class="view-section" style="display: none;">
+            
+            <!-- Login -->
+            <div id="adminLogin" class="admin-panel">
+                <h3>Acceso a Operaciones</h3>
+                <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 15px;">Ingrese su PIN autorizado para continuar.</p>
+                <input type="password" id="pinInput" placeholder="Ej: R98U" class="form-control">
+                <button onclick="verificarPin()" class="btn-generar" style="width: 100%; margin-top: 10px;">Ingresar</button>
+            </div>
+
+            <!-- Panel Rufino -->
+            <div id="panelRufino" class="admin-panel" style="display: none;">
+                <h3>Traslado: Quilmaná ➔ Fundo (Rufino)</h3>
+                <label>Producto a trasladar:</label>
+                <select id="rufinoProducto" class="form-control" onchange="actualizarMaximoRufino()"></select>
+                
+                <label>Cantidad:</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="rufinoCantidad" class="form-control" step="0.01">
+                    <span id="rufinoUm" style="padding-top:10px; font-weight:bold; color:var(--dark);"></span>
+                </div>
+                <p id="rufinoMax" style="font-size: 0.8rem; color: var(--danger); margin-bottom:15px;"></p>
+                
+                <button onclick="ejecutarRufino()" class="btn-generar" style="width:100%;">Confirmar Traslado</button>
+                <button onclick="cerrarSesionAdmin()" class="btn-salir">Salir</button>
+            </div>
+
+            <!-- Panel Vicente -->
+            <div id="panelVicente" class="admin-panel" style="display: none;">
+                <h3>Operaciones en Fundo (Vicente)</h3>
+                <label>Tipo de Operación:</label>
+                <select id="vicenteOperacion" class="form-control" onchange="toggleVicenteForm()">
+                    <option value="APLICAR">Aplicación en Campo (Salida)</option>
+                    <option value="DEVOLVER">Devolver a Quilmaná (Unidades Completas)</option>
+                </select>
+
+                <label>Producto disponible en Fundo:</label>
+                <select id="vicenteProducto" class="form-control" onchange="actualizarMaximoVicente()"></select>
+
+                <div id="vicenteCamposCampo">
+                    <label>Campo / Zona de aplicación:</label>
+                    <select id="vicenteZona" class="form-control"></select>
+                    
+                    <label>Uso / Justificación Fitosanitaria:</label>
+                    <select id="vicenteUso" class="form-control">
+                        <!-- Se llena dinámicamente según el producto -->
+                    </select>
+                </div>
+                
+                <label>Cantidad:</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="vicenteCantidad" class="form-control" step="0.01">
+                    <span id="vicenteUm" style="padding-top:10px; font-weight:bold; color:var(--dark);"></span>
+                </div>
+                <p id="vicenteMax" style="font-size: 0.8rem; color: var(--danger); margin-bottom:15px;"></p>
+                
+                <button onclick="ejecutarVicente()" class="btn-generar" style="width:100%;">Confirmar Operación</button>
+                <button onclick="cerrarSesionAdmin()" class="btn-salir">Salir</button>
+            </div>
+        </div>
+
     </main>
 
     <!-- Modal Flotante de Especificaciones -->
@@ -78,9 +138,15 @@
         <div class="modal-content">
             <span class="close-btn" onclick="cerrarModal()">&times;</span>
             <h2 id="modalTitle">Producto</h2>
-            <div id="modalBody">
-                <!-- El contenido se inyectará aquí con JS -->
-            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Overlay de Carga Interactivo -->
+    <div id="syncOverlay" class="modal" style="z-index: 9999;">
+        <div class="modal-content" style="text-align: center; margin-top: 50%;">
+            <h3 style="color:var(--primary);">Sincronizando...</h3>
+            <p>Enviando datos a la nube.</p>
         </div>
     </div>
 
