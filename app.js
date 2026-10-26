@@ -180,12 +180,16 @@ function procesarDatos(data) {
 }
 
 // ======================================================
-// RENDERIZADO DEL KANBAN Y VISTAS
+// RENDERIZADO: STOCK VERTICAL + KANBAN ADMIN
 // ======================================================
 function filtrarDatos() {
     let q = document.getElementById('searchInput').value.toUpperCase();
     let filtroCatRaw = document.getElementById('filtroCategoria').value;
+    let alm = document.getElementById('filtroAlmacen').value;
+    let filtroCamp = document.getElementById('filtroCampo') ? document.getElementById('filtroCampo').value : "TODOS";
 
+    // --- RECONSTRUCCIÓN DEL STOCK NORMAL Y EL KANBAN ---
+    let htmlStock = "";
     document.getElementById('kb-sanborja').innerHTML = "";
     document.getElementById('kb-quilmana').innerHTML = "";
     document.getElementById('kb-fundo').innerHTML = "";
@@ -193,13 +197,14 @@ function filtrarDatos() {
 
     inventarioGlobal.forEach(item => {
         let matchText = `${item.producto} ${item.lote} ${item.pa}`.includes(q);
+        let matchAlm = (alm === "TODOS" || item.almacen === alm);
+
         let matchCat = true;
         if (filtroCatRaw.startsWith("CAT:")) matchCat = (item.cat === filtroCatRaw.split(":")[1]);
         else if (filtroCatRaw.startsWith("SUB:")) matchCat = (item.obj === filtroCatRaw.split(":")[1]);
 
-        if (matchText && matchCat) {
+        if (matchText && matchCat && matchAlm) {
             let badgeClass = item.almacen.includes("San Borja") ? "san-borja" : item.almacen.includes("Quilmana") ? "quilmana" : "fundo";
-
             let datasetString = `data-prod="${item.producto.replace(/"/g, '&quot;')}" data-pa="${item.pa}" data-cat="${item.cat}" data-obj="${item.obj}" data-lote="${item.lote}" data-venc="${item.vencRaw}" data-um="${item.um}" data-formato="${item.formato}" data-cxb="${item.cxb}" data-stock="${item.stock}"`;
 
             let cardHTML = `
@@ -207,30 +212,45 @@ function filtrarDatos() {
                     <div class="icono-info" onclick="mostrarDetalles('${item.producto.replace(/'/g, "\\'")}')" style="cursor:pointer; z-index:10;">ℹ️</div>
                     <div class="card-title">${item.producto}</div><div class="card-subtitle">${item.pa || '-'}</div>
                     <div class="card-details">
-                        <div><span class="badge ${badgeClass}">${item.almacen.replace('Almacén ', '').replace('de ', '')}</span><br><span style="font-size:0.8rem; color:#7f8c8d; display:block; margin-top:5px;">Lote: ${item.lote || '-'}</span></div>
-                        <div><div class="stock-value">${item.stock.toFixed(2)} ${item.um}</div><div class="fecha-venc" style="color: ${item.venc === '-' ? '#7f8c8d' : 'var(--danger)'}">Vence: ${item.venc}</div></div>
+                        <div>
+                            <span class="badge ${badgeClass}">${item.almacen.replace('Almacén ', '').replace('de ', '')}</span><br>
+                            <span style="font-size:0.8rem; color:#7f8c8d; display:block; margin-top:5px;">Lote: ${item.lote || '-'}</span>
+                        </div>
+                        <div>
+                            <div class="stock-value">${item.stock.toFixed(2)} ${item.um}</div>
+                            <div class="fecha-venc" style="color: ${item.venc === '-' ? '#7f8c8d' : 'var(--danger)'}">Vence: ${item.venc}</div>
+                        </div>
                     </div>
                 </div>`;
+            
+            // 1. Agregar a la lista clásica vertical
+            htmlStock += cardHTML;
 
+            // 2. Agregar a las columnas del Kanban (para Administradores)
             if (item.almacen === "Almacén de San Borja") document.getElementById('kb-sanborja').innerHTML += cardHTML;
             else if (item.almacen === "Almacén de Quilmana") document.getElementById('kb-quilmana').innerHTML += cardHTML;
             else if (item.almacen === "Almacén Fundo") document.getElementById('kb-fundo').innerHTML += cardHTML;
         }
     });
 
-    initKanban();
+    if(!htmlStock) htmlStock = "<div class='loading'>No se encontraron productos en stock.</div>";
+    document.getElementById('stockView').innerHTML = htmlStock;
 
-    // Vista de Historial Campo
-    let filtroCamp = document.getElementById('filtroCampo') ? document.getElementById('filtroCampo').value : "TODOS";
+    // Iniciar funciones de arrastre si estamos en Admin
+    if (usuarioActual) initKanban();
+
+    // --- FILTRADO DE HISTORIAL DE CAMPO ---
     let htmlCampo = "";
     aplicacionesGlobal.forEach(item => {
         let matchText = `${item.producto} ${item.lote} ${item.zona} ${item.usos}`.includes(q);
         let matchCamp = (filtroCamp === "TODOS" || item.zona === filtroCamp);
+        
         if (matchText && matchCamp) {
             htmlCampo += `
                 <div class="card campo">
                     <div style="display:flex; justify-content:space-between;">
-                        <div class="card-title">${item.producto}</div><div style="font-size:0.8rem; color:#8E44AD; font-weight:bold;">${item.fecha}</div>
+                        <div class="card-title">${item.producto}</div>
+                        <div style="font-size:0.8rem; color:#8E44AD; font-weight:bold;">${item.fecha}</div>
                     </div>
                     <div class="card-details" style="margin-top:8px;">
                         <div><strong>Zona:</strong> ${item.zona}<br><strong>Lote:</strong> ${item.lote}</div>
@@ -240,14 +260,17 @@ function filtrarDatos() {
                 </div>`;
         }
     });
-    if (!htmlCampo) htmlCampo = "<div class='loading'>No se encontraron aplicaciones en campo.</div>";
-    document.getElementById('campoView').innerHTML = htmlCampo;
 
-    if (document.getElementById('reporteView').style.display === 'block') generarReporteCampo();
+    if(!htmlCampo) htmlCampo = "<div class='loading'>No se encontraron aplicaciones en campo.</div>";
+    document.getElementById('campoView').innerHTML = htmlCampo;
+    
+    if (document.getElementById('reporteView').style.display === 'block') {
+        generarReporteCampo();
+    }
 }
 
 // ======================================================
-// DRAG & DROP (KANBAN)
+// DRAG & DROP (KANBAN ADMIN)
 // ======================================================
 function initKanban() {
     if (kanbanInstances.length > 0) return;
@@ -412,6 +435,7 @@ function ejecutarDrag() {
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.view-section').forEach(v => v.style.display = 'none');
+    document.getElementById('filtroAlmacen').style.display = 'none';
     document.getElementById('filtroCampo').style.display = 'none';
     document.getElementById('filtroCategoria').style.display = 'none';
     document.getElementById('searchInput').style.display = 'none';
@@ -419,6 +443,7 @@ function switchTab(tab) {
     if (tab === 'stock') {
         document.querySelectorAll('.tab-btn')[0].classList.add('active');
         document.getElementById('stockView').style.display = 'block';
+        document.getElementById('filtroAlmacen').style.display = 'inline-block';
         document.getElementById('filtroCategoria').style.display = 'inline-block';
         document.getElementById('searchInput').style.display = 'block';
     } else if (tab === 'campo') {
@@ -433,7 +458,52 @@ function switchTab(tab) {
     } else if (tab === 'admin') {
         document.querySelectorAll('.tab-btn')[3].classList.add('active');
         document.getElementById('adminView').style.display = 'block';
+        document.getElementById('filtroCategoria').style.display = 'inline-block';
+        document.getElementById('searchInput').style.display = 'block';
     }
+}
+
+// ======================================================
+// SEGURIDAD, PERFILES Y VISIBILIDAD DE COLUMNAS
+// ======================================================
+function verificarPin() {
+    let pin = document.getElementById("pinInput").value.trim().toUpperCase();
+    
+    // Configuración de visibilidad de columnas por Rol
+    if (pin === "R98U") { 
+        usuarioActual = "RUFINO"; 
+        document.getElementById("col-sanborja").style.display = "none";
+        document.getElementById("col-quilmana").style.display = "flex";
+        document.getElementById("col-fundo").style.display = "flex";
+        document.getElementById("col-campo").style.display = "none";
+    } 
+    else if (pin === "V96I") { 
+        usuarioActual = "VICENTE"; 
+        document.getElementById("col-sanborja").style.display = "none";
+        document.getElementById("col-quilmana").style.display = "flex";
+        document.getElementById("col-fundo").style.display = "flex";
+        document.getElementById("col-campo").style.display = "flex";
+    } 
+    else { 
+        alert("PIN incorrecto. Acceso denegado."); 
+        return; 
+    }
+
+    document.getElementById("adminLogin").style.display = "none";
+    document.getElementById("adminLogueado").style.display = "block";
+    document.getElementById("adminBienvenida").innerText = `¡Bienvenido, ${usuarioActual}!`;
+    document.getElementById("tabAdmin").innerHTML = `👤 ${usuarioActual}`;
+    
+    filtrarDatos(); // Recargar Kanban con columnas filtradas
+}
+
+function cerrarSesionAdmin() {
+    usuarioActual = null;
+    document.getElementById("pinInput").value = "";
+    document.getElementById("adminLogueado").style.display = "none";
+    document.getElementById("adminLogin").style.display = "block";
+    document.getElementById("tabAdmin").innerHTML = "🔐 Admin";
+    switchTab('stock');
 }
 
 // ======================================================
@@ -471,32 +541,6 @@ function generarReporteCampo() {
         html += `<tr><td>${app.fecha}</td><td><strong>${app.producto}</strong><br><span style="font-size:0.75rem; color:#777;">${app.pa}</span></td><td>${app.zona}</td><td>${app.usos}</td><td style="font-weight:bold; color:var(--dark);">${app.cantidad.toFixed(2)} ${app.um}</td><td style="color:var(--primary); font-weight:bold;">${prorrateoTxt}</td></tr>`;
     });
     document.getElementById('reporteContenido').innerHTML = html + `</tbody></table>`;
-}
-
-// ======================================================
-// SEGURIDAD Y PERFILES
-// ======================================================
-function verificarPin() {
-    let pin = document.getElementById("pinInput").value.trim().toUpperCase();
-    if (pin === "R98U") { usuarioActual = "RUFINO"; }
-    else if (pin === "V96I") { usuarioActual = "VICENTE"; }
-    else { alert("PIN incorrecto. Acceso denegado."); return; }
-
-    document.getElementById("adminLogin").style.display = "none";
-    document.getElementById("adminLogueado").style.display = "block";
-    document.getElementById("adminBienvenida").innerText = `¡Bienvenido, ${usuarioActual}!`;
-    document.getElementById("tabAdmin").innerHTML = `👤 ${usuarioActual}`;
-
-    // Redirigir al Kanban automáticamente
-    switchTab('stock');
-}
-
-function cerrarSesionAdmin() {
-    usuarioActual = null;
-    document.getElementById("pinInput").value = "";
-    document.getElementById("adminLogueado").style.display = "none";
-    document.getElementById("adminLogin").style.display = "block";
-    document.getElementById("tabAdmin").innerHTML = "🔐 Admin";
 }
 
 // ======================================================

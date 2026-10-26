@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agrogest-pwa-v10';
+const CACHE_NAME = 'agrogest-pwa-v11';
 const ASSETS = [
     './',
     './index.html',
@@ -13,7 +13,7 @@ self.addEventListener('install', event => {
             return cache.addAll(ASSETS);
         })
     );
-    self.skipWaiting();
+    self.skipWaiting(); 
 });
 
 self.addEventListener('activate', event => {
