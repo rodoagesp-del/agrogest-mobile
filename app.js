@@ -3,7 +3,8 @@
 // ======================================================
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQpvGU5GwEfk6hK5A9eiO5-moXq9gxlxywtrXEfc63vaxGw6xDGAsCVkiUEJUH3uiBz1MrxVFqgKKaL/pub?gid=1727735409&single=true&output=csv';
 const USOS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGndkXKibFfCovjtznlsbD4V9AiU593xd_3KSwoLOjppTMBFiEHWaG2zEMDWVPkSnUno7wdHU8Cca-/pub?gid=1408750423&single=true&output=csv';
-const ZONAS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRBeeBtO4H6JIiEGwzlQLDVPIB2tWO-N83j6xt34j4RCqhz_1FF0jiWkXLbcKQy7naM6u_GRoLveSp7/pubhtml?gid=1473578018&single=true';
+// CORRECCIÓN: Se usa "output=csv" en lugar de pubhtml para leer correctamente la data de zonas
+const ZONAS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRBeeBtO4H6JIiEGwzlQLDVPIB2tWO-N83j6xt34j4RCqhz_1FF0jiWkXLbcKQy7naM6u_GRoLveSp7/pub?gid=1473578018&single=true&output=csv';
 
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzPzZau7f4ulrQqa4BpglpQjTMJ7h4KmDgHyJu9zNxKo5nLTKgOVHj-hp-B3725Buhl6A/exec";
 const SHEET_ID_INVENTARIO = "1WKE8uEyym1zG2o7_AO6UyRws1F4_qzo7qeh1S6vi5co";
@@ -78,6 +79,11 @@ function cargarZonas() {
                 selectCampo.appendChild(opt1);
                 filtroCamp.appendChild(opt2);
             });
+
+            // Si la vista de reporte está activa, refrescamos el reporte para inyectar árboles
+            if (document.getElementById('reporteView').style.display === 'block') {
+                generarReporteCampo();
+            }
             document.getElementById('loading').style.display = 'none';
         }
     });
@@ -222,7 +228,7 @@ function filtrarDatos() {
                         </div>
                     </div>
                 </div>`;
-            
+
             // 1. Agregar a la lista clásica vertical
             htmlStock += cardHTML;
 
@@ -244,7 +250,7 @@ function filtrarDatos() {
     aplicacionesGlobal.forEach(item => {
         let matchText = `${item.producto} ${item.lote} ${item.zona} ${item.usos}`.includes(q);
         let matchCamp = (filtroCamp === "TODOS" || item.zona === filtroCamp);
-        
+
         if (matchText && matchCamp) {
             htmlCampo += `
                 <div class="card campo">
@@ -263,7 +269,7 @@ function filtrarDatos() {
 
     if(!htmlCampo) htmlCampo = "<div class='loading'>No se encontraron aplicaciones en campo.</div>";
     document.getElementById('campoView').innerHTML = htmlCampo;
-    
+
     if (document.getElementById('reporteView').style.display === 'block') {
         generarReporteCampo();
     }
@@ -342,21 +348,19 @@ function procesarDrop(evt) {
 
 function abrirModalConfirmacion() {
     let d = dragDataActual;
-    document.getElementById("dragTitle").innerText = d.destino === "Zonas de Cultivo" ? "🌿 Aplicación en Campo" : "⚠️ Confirmar Traslado";
+    let esAplicacion = (d.destino === "Zonas de Cultivo");
 
-    document.getElementById("dragInfo").innerHTML = `
-        <strong>${d.producto}</strong> (Lote: ${d.lote})<br>
-        Ruta: <span style="color:var(--primary);">${d.origen} ➔ ${d.destino}</span>
-    `;
+    document.getElementById("dragTitle").innerText = esAplicacion ? "🌿 Aplicación en Campo" : "⚠️ Confirmar Traslado";
+    document.getElementById("dragInfo").innerHTML = `<strong>${d.producto}</strong> (Lote: ${d.lote})<br>Ruta: <span style="color:var(--primary);">${d.origen} ➔ ${d.destino}</span>`;
 
-    document.getElementById("dragUm").innerText = d.um;
-    document.getElementById("dragCantidad").value = d.stock.toFixed(2);
-    document.getElementById("dragMaxAlert").innerText = `Stock disponible: ${d.stock.toFixed(2)} ${d.um} (Bulto = ${d.cxb})`;
+    // Lógica dinámica de input: Bultos o Volumen
+    if (esAplicacion) {
+        document.getElementById("dragLabelCantidad").innerText = "Cantidad a aplicar (Volumen/Masa):";
+        document.getElementById("dragUm").innerText = d.um;
+        document.getElementById("dragCantidad").value = d.stock.toFixed(2);
+        document.getElementById("dragCantidad").step = "0.01";
+        document.getElementById("dragMaxAlert").innerText = `Stock disponible: ${d.stock.toFixed(2)} ${d.um}`;
 
-    usosSeleccionadosArray = [];
-    document.getElementById("dragUsosSeleccionados").innerText = "Ninguno";
-
-    if (d.destino === "Zonas de Cultivo") {
         document.getElementById("dragCamposZone").style.display = "block";
         let uSelect = document.getElementById("dragUso");
         uSelect.innerHTML = "";
@@ -372,9 +376,19 @@ function abrirModalConfirmacion() {
             });
         }
     } else {
+        document.getElementById("dragLabelCantidad").innerText = `¿Cuántos ${d.formato}s desea trasladar?:`;
+        document.getElementById("dragUm").innerText = `(${d.formato}s)`;
+        document.getElementById("dragCantidad").step = "1"; // Forzar enteros
+
+        let maxBultos = d.cxb > 0 ? Math.floor(d.stock / d.cxb) : d.stock;
+        document.getElementById("dragCantidad").value = maxBultos;
+        document.getElementById("dragMaxAlert").innerText = `Stock máx. movible: ${maxBultos} ${d.formato}s (Capacidad bulto = ${d.cxb} ${d.um})`;
+
         document.getElementById("dragCamposZone").style.display = "none";
     }
 
+    usosSeleccionadosArray = [];
+    document.getElementById("dragUsosSeleccionados").innerText = "Ninguno";
     document.getElementById("dragModal").style.display = "block";
 }
 
@@ -393,36 +407,53 @@ function cerrarDragModal() {
 
 function ejecutarDrag() {
     let d = dragDataActual;
-    let cant = parseFloat(document.getElementById("dragCantidad").value);
+    let inputVal = parseFloat(document.getElementById("dragCantidad").value);
 
-    if (isNaN(cant) || cant <= 0 || cant > d.stock) {
-        alert("Por favor ingrese una cantidad válida que no supere el stock.");
+    if (isNaN(inputVal) || inputVal <= 0) {
+        alert("Por favor ingrese una cantidad válida mayor a cero.");
         return;
     }
 
-    let bultos = d.cxb > 0 ? (cant / d.cxb) : cant;
+    let cant = 0;
+    let bultos = 0;
     let fila;
 
     if (d.destino === "Zonas de Cultivo") {
+        // Aplicación en Campo (Volumen/Masa)
+        cant = inputVal;
+        if (cant > d.stock) {
+            alert(`No puede aplicar más del stock disponible (${d.stock} ${d.um}).`);
+            return;
+        }
+        bultos = d.cxb > 0 ? (cant / d.cxb) : cant;
+
         let zona = document.getElementById("dragZona").value;
         if (!zona) { alert("Debe seleccionar un campo."); return; }
 
-        // Agregar el uso que quedó sin clickear "+"
         let usoActual = document.getElementById("dragUso").value;
         if (usoActual && !usosSeleccionadosArray.includes(usoActual)) usosSeleccionadosArray.push(usoActual);
-
         let usoFinal = usosSeleccionadosArray.length > 0 ? usosSeleccionadosArray.join(", ") : "-";
 
         fila = [obtenerFechaHoy(), "Salida", d.cat, usoFinal, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.venc, d.lote, d.origen, zona, "Aplicación PWA"];
     } else {
-        // Validación de retorno: bultos enteros o remanente total exacto
-        if (d.origen === "Almacén Fundo" && d.destino === "Almacén de Quilmana") {
-            if (d.cxb > 0 && cant !== d.stock && (cant % d.cxb) !== 0) {
-                alert(`Para devolver a Quilmaná, debe enviar bultos enteros de ${d.cxb} ${d.um}, o el remanente total exacto (${d.stock}).`);
-                return;
-            }
+        // Traslado entre almacenes (Solo bultos completos)
+        bultos = parseInt(inputVal); // Forzar a número entero
+        let maxBultos = d.cxb > 0 ? Math.floor(d.stock / d.cxb) : d.stock;
+
+        if (bultos > maxBultos) {
+            alert(`Supera los bultos completos disponibles. Máximo: ${maxBultos} ${d.formato}s.`);
+            return;
         }
-        fila = [obtenerFechaHoy(), "Traslado", d.cat, d.obj, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.venc, d.lote, d.origen, d.destino, "Traslado PWA"];
+
+        cant = d.cxb > 0 ? bultos * d.cxb : bultos;
+
+        // Validación de retorno específico de Vicente
+        let obs = "Traslado PWA";
+        if (d.origen === "Almacén Fundo" && d.destino === "Almacén de Quilmana") {
+            obs = "Devolución PWA (Vicente)";
+        }
+
+        fila = [obtenerFechaHoy(), "Traslado", d.cat, d.obj, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.venc, d.lote, d.origen, d.destino, obs];
     }
 
     cerrarDragModal();
@@ -468,32 +499,32 @@ function switchTab(tab) {
 // ======================================================
 function verificarPin() {
     let pin = document.getElementById("pinInput").value.trim().toUpperCase();
-    
+
     // Configuración de visibilidad de columnas por Rol
-    if (pin === "R98U") { 
-        usuarioActual = "RUFINO"; 
+    if (pin === "R98U") {
+        usuarioActual = "RUFINO";
         document.getElementById("col-sanborja").style.display = "none";
         document.getElementById("col-quilmana").style.display = "flex";
         document.getElementById("col-fundo").style.display = "flex";
         document.getElementById("col-campo").style.display = "none";
-    } 
-    else if (pin === "V96I") { 
-        usuarioActual = "VICENTE"; 
+    }
+    else if (pin === "V96I") {
+        usuarioActual = "VICENTE";
         document.getElementById("col-sanborja").style.display = "none";
         document.getElementById("col-quilmana").style.display = "flex";
         document.getElementById("col-fundo").style.display = "flex";
         document.getElementById("col-campo").style.display = "flex";
-    } 
-    else { 
-        alert("PIN incorrecto. Acceso denegado."); 
-        return; 
+    }
+    else {
+        alert("PIN incorrecto. Acceso denegado.");
+        return;
     }
 
     document.getElementById("adminLogin").style.display = "none";
     document.getElementById("adminLogueado").style.display = "block";
     document.getElementById("adminBienvenida").innerText = `¡Bienvenido, ${usuarioActual}!`;
     document.getElementById("tabAdmin").innerHTML = `👤 ${usuarioActual}`;
-    
+
     filtrarDatos(); // Recargar Kanban con columnas filtradas
 }
 

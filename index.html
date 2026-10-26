@@ -143,9 +143,10 @@
                 <div id="dragUsosSeleccionados" style="font-size: 0.8rem; color: #2980B9; margin-bottom: 15px; font-style: italic; margin-top:5px;">Ninguno</div>
             </div>
 
-            <label style="font-size:0.85rem; font-weight:bold; color:var(--dark);">Cantidad a mover:</label>
+            <!-- Label dinámico: cambia según destino (bultos vs volumen) -->
+            <label id="dragLabelCantidad" style="font-size:0.85rem; font-weight:bold; color:var(--dark);">Cantidad a mover:</label>
             <div style="display:flex; gap:10px;">
-                <input type="number" id="dragCantidad" class="form-control" step="0.01" style="margin-bottom:0;">
+                <input type="number" id="dragCantidad" class="form-control" step="1" style="margin-bottom:0;" min="1">
                 <span id="dragUm" style="padding-top:10px; font-weight:bold; color:var(--dark);"></span>
             </div>
             <p id="dragMaxAlert" style="font-size: 0.8rem; color: var(--danger); margin-bottom:15px; margin-top:5px;"></p>
