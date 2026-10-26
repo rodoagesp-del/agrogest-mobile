@@ -8,11 +8,13 @@
     <meta name="theme-color" content="#2C3E50">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Librería para Drag & Drop Táctil -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </head>
 <body>
     <header class="app-header">
         <h1>🌱 AgroGest+</h1>
-        <p class="subtitle">Control Fitosanitario en Tiempo Real</p>
+        <p class="subtitle">Tablero Kanban Logístico</p>
     </header>
 
     <div class="controls">
@@ -33,12 +35,6 @@
                 <option value="SUB:REGULADORES DE CRECIMIENTO">&nbsp;&nbsp;&nbsp;↳ Reg. Crecimiento</option>
                 <option value="CAT:OTROS">Otros</option>
             </select>
-            <select id="filtroAlmacen" onchange="filtrarDatos()">
-                <option value="TODOS">Almacén: Todos</option>
-                <option value="Almacén de San Borja">San Borja</option>
-                <option value="Almacén de Quilmana">Quilmaná</option>
-                <option value="Almacén Fundo">Fundo</option>
-            </select>
             <select id="filtroCampo" onchange="filtrarDatos()" style="display: none;">
                 <option value="TODOS">Campo: Todos</option>
             </select>
@@ -46,18 +42,43 @@
     </div>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('stock')">📦 Stock</button>
-        <button class="tab-btn" onclick="switchTab('campo')">🚜 Campo</button>
+        <button class="tab-btn active" onclick="switchTab('stock')">📦 Kanban</button>
+        <button class="tab-btn" onclick="switchTab('campo')">🚜 Historial Campo</button>
         <button class="tab-btn" onclick="switchTab('reporte')">📊 Reporte</button>
-        <button class="tab-btn" onclick="switchTab('admin')">🔐 Admin</button>
+        <button class="tab-btn" onclick="switchTab('admin')" id="tabAdmin">🔐 Admin</button>
     </div>
 
     <main id="app-content">
         <div id="loading" class="loading">Sincronizando bases de datos...</div>
 
-        <div id="stockView" class="view-section active"></div>
+        <!-- VISTA KANBAN -->
+        <div id="stockView" class="view-section active">
+            <div class="kanban-board">
+                <div class="kanban-col">
+                    <div class="kanban-header san-borja-header">San Borja</div>
+                    <div class="kanban-items" id="kb-sanborja" data-alm="Almacén de San Borja"></div>
+                </div>
+                <div class="kanban-col">
+                    <div class="kanban-header quilmana-header">Quilmaná</div>
+                    <div class="kanban-items" id="kb-quilmana" data-alm="Almacén de Quilmana"></div>
+                </div>
+                <div class="kanban-col">
+                    <div class="kanban-header fundo-header">Fundo</div>
+                    <div class="kanban-items" id="kb-fundo" data-alm="Almacén Fundo"></div>
+                </div>
+                <div class="kanban-col">
+                    <div class="kanban-header campo-header">Zonas de Cultivo</div>
+                    <div class="kanban-items" id="kb-campo" data-alm="Zonas de Cultivo">
+                        <p style="text-align:center; color:#888; font-size:0.9rem; margin-top:20px;">Arrastre aquí para<br>Aplicar en Campo</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORIAL CAMPO -->
         <div id="campoView" class="view-section" style="display: none;"></div>
         
+        <!-- REPORTE -->
         <div id="reporteView" class="view-section" style="display: none;">
             <div class="report-filters">
                 <label>Desde: <input type="date" id="fechaDesde"></label>
@@ -69,71 +90,23 @@
             </div>
         </div>
 
-        <!-- Nueva vista de Administrador (Operarios) -->
+        <!-- ADMINISTRADOR (Login) -->
         <div id="adminView" class="view-section" style="display: none;">
-            
-            <!-- Login -->
             <div id="adminLogin" class="admin-panel">
                 <h3>Acceso a Operaciones</h3>
-                <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 15px;">Ingrese su PIN autorizado para continuar.</p>
+                <p style="font-size: 0.85rem; color: #7f8c8d; margin-bottom: 15px;">Ingrese su PIN autorizado para desbloquear el Kanban.</p>
                 <input type="password" id="pinInput" placeholder="Ej: R98U" class="form-control">
                 <button onclick="verificarPin()" class="btn-generar" style="width: 100%; margin-top: 10px;">Ingresar</button>
             </div>
-
-            <!-- Panel Rufino -->
-            <div id="panelRufino" class="admin-panel" style="display: none;">
-                <h3>Traslado: Quilmaná ➔ Fundo (Rufino)</h3>
-                <label>Producto a trasladar:</label>
-                <select id="rufinoProducto" class="form-control" onchange="actualizarMaximoRufino()"></select>
-                
-                <label>Cantidad:</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="number" id="rufinoCantidad" class="form-control" step="0.01">
-                    <span id="rufinoUm" style="padding-top:10px; font-weight:bold; color:var(--dark);"></span>
-                </div>
-                <p id="rufinoMax" style="font-size: 0.8rem; color: var(--danger); margin-bottom:15px;"></p>
-                
-                <button onclick="ejecutarRufino()" class="btn-generar" style="width:100%;">Confirmar Traslado</button>
-                <button onclick="cerrarSesionAdmin()" class="btn-salir">Salir</button>
-            </div>
-
-            <!-- Panel Vicente -->
-            <div id="panelVicente" class="admin-panel" style="display: none;">
-                <h3>Operaciones en Fundo (Vicente)</h3>
-                <label>Tipo de Operación:</label>
-                <select id="vicenteOperacion" class="form-control" onchange="toggleVicenteForm()">
-                    <option value="APLICAR">Aplicación en Campo (Salida)</option>
-                    <option value="DEVOLVER">Devolver a Quilmaná (Unidades Completas)</option>
-                </select>
-
-                <label>Producto disponible en Fundo:</label>
-                <select id="vicenteProducto" class="form-control" onchange="actualizarMaximoVicente()"></select>
-
-                <div id="vicenteCamposCampo">
-                    <label>Campo / Zona de aplicación:</label>
-                    <select id="vicenteZona" class="form-control"></select>
-                    
-                    <label>Uso / Justificación Fitosanitaria:</label>
-                    <select id="vicenteUso" class="form-control">
-                        <!-- Se llena dinámicamente según el producto -->
-                    </select>
-                </div>
-                
-                <label>Cantidad:</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="number" id="vicenteCantidad" class="form-control" step="0.01">
-                    <span id="vicenteUm" style="padding-top:10px; font-weight:bold; color:var(--dark);"></span>
-                </div>
-                <p id="vicenteMax" style="font-size: 0.8rem; color: var(--danger); margin-bottom:15px;"></p>
-                
-                <button onclick="ejecutarVicente()" class="btn-generar" style="width:100%;">Confirmar Operación</button>
-                <button onclick="cerrarSesionAdmin()" class="btn-salir">Salir</button>
+            <div id="adminLogueado" class="admin-panel" style="display: none; text-align:center;">
+                <h3 id="adminBienvenida"></h3>
+                <p style="font-size: 0.85rem; color: var(--primary); font-weight:bold; margin-bottom: 15px;">Kanban Desbloqueado. Dirígete a la pestaña "Kanban" para arrastrar y soltar.</p>
+                <button onclick="cerrarSesionAdmin()" class="btn-salir">Cerrar Sesión</button>
             </div>
         </div>
-
     </main>
 
-    <!-- Modal Flotante de Especificaciones -->
+    <!-- Modal Detalles Agronómicos -->
     <div id="detallesModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="cerrarModal()">&times;</span>
@@ -142,7 +115,37 @@
         </div>
     </div>
 
-    <!-- Overlay de Carga Interactivo -->
+    <!-- Modal Confirmación Drag & Drop -->
+    <div id="dragModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="cerrarDragModal()">&times;</span>
+            <h2 id="dragTitle">Confirmar Acción</h2>
+            <div id="dragInfo" style="margin-bottom: 15px; font-size:0.9rem; padding:10px; background:#F8F9F9; border-left:4px solid var(--primary);"></div>
+            
+            <div id="dragCamposZone" style="display:none;">
+                <label style="font-size:0.85rem; font-weight:bold; color:var(--dark);">Campo / Zona de aplicación:</label>
+                <select id="dragZona" class="form-control"></select>
+                
+                <label style="font-size:0.85rem; font-weight:bold; margin-top:10px; color:var(--dark);">Uso / Objetivo (Agregue varios):</label>
+                <div style="display:flex; gap:5px;">
+                    <select id="dragUso" class="form-control" style="margin-bottom:0; flex:1;"></select>
+                    <button onclick="agregarUsoDrag()" class="btn-generar" style="width:40px; margin-top:0;">+</button>
+                </div>
+                <div id="dragUsosSeleccionados" style="font-size: 0.8rem; color: #2980B9; margin-bottom: 15px; font-style: italic; margin-top:5px;">Ninguno</div>
+            </div>
+
+            <label style="font-size:0.85rem; font-weight:bold; color:var(--dark);">Cantidad a mover:</label>
+            <div style="display:flex; gap:10px;">
+                <input type="number" id="dragCantidad" class="form-control" step="0.01" style="margin-bottom:0;">
+                <span id="dragUm" style="padding-top:10px; font-weight:bold; color:var(--dark);"></span>
+            </div>
+            <p id="dragMaxAlert" style="font-size: 0.8rem; color: var(--danger); margin-bottom:15px; margin-top:5px;"></p>
+
+            <button onclick="ejecutarDrag()" class="btn-generar" style="width:100%;">Confirmar Operación</button>
+        </div>
+    </div>
+
+    <!-- Overlay Carga -->
     <div id="syncOverlay" class="modal" style="z-index: 9999;">
         <div class="modal-content" style="text-align: center; margin-top: 50%;">
             <h3 style="color:var(--primary);">Sincronizando...</h3>

@@ -72,3 +72,18 @@ main { padding: 15px; }
 .form-control { width: 100%; padding: 12px; margin: 5px 0 15px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; background: var(--light); }
 .form-control:focus { outline: none; border-color: var(--primary); }
 .btn-salir { background: var(--danger); color: var(--white); border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+
+/* ================= Tablero Kanban Móvil ================= */
+.kanban-board { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 15px; padding-bottom: 15px; -webkit-overflow-scrolling: touch; }
+.kanban-col { min-width: 85vw; scroll-snap-align: center; background: #EAECEE; border-radius: 8px; display: flex; flex-direction: column; height: 68vh; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.kanban-header { padding: 12px; text-align: center; font-weight: bold; color: var(--white); border-top-left-radius: 8px; border-top-right-radius: 8px; font-size: 1.1rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+.san-borja-header { background: #E67E22; }
+.quilmana-header { background: #F39C12; }
+.fundo-header { background: #27AE60; }
+.campo-header { background: #8E44AD; }
+.kanban-items { padding: 10px; overflow-y: auto; flex: 1; min-height: 150px; }
+
+/* Efectos de Arrastre (SortableJS) */
+.sortable-ghost { opacity: 0.4; background-color: #f4f4f4; border: 2px dashed #999; }
+.sortable-drag { cursor: grabbing !important; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
+.card { cursor: grab; }
