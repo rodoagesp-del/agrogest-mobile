@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agrogest-pwa-v15'; // <--- VERSIÓN ACTUALIZADA (V15)
+const CACHE_NAME = 'agrogest-pwa-v16'; // <--- VERSIÓN ACTUALIZADA (V16)
 const ASSETS = [
     './',
     './index.html',
@@ -32,6 +32,12 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+    // NUEVO: Ignorar peticiones POST (como la API de Google Apps Script) para evitar errores de caché
+    if (event.request.method !== 'GET') {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     event.respondWith(
         fetch(event.request)
             .then(networkResponse => {

@@ -32,18 +32,42 @@ const ALMACENES_MAP = {
 document.addEventListener("DOMContentLoaded", initApp);
 
 // ======================================================
-// INICIALIZACIÓN Y CARGA DE DATOS
+// INICIALIZACIÓN Y CARGA DE DATOS (Actualizado a Tiempo Real)
 // ======================================================
 function initApp() {
     document.getElementById('loading').style.display = 'block';
-    Papa.parse(CSV_URL, {
-        download: true, header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
-        complete: function(results) {
-            procesarDatos(results.data);
-            cargarUsos();
-            cargarZonas();
-        },
-        error: function() { document.getElementById('loading').innerText = "Error de conexión."; }
+
+    // Ahora leemos el inventario usando Apps Script (Igual que la PC) en lugar del CSV cacheado
+    fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: "leer", sheetId: SHEET_ID_INVENTARIO })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === "ok" && result.data && result.data.length > 1) {
+            let headers = result.data[0].map(h => String(h).trim());
+            
+            // Convertimos la matriz (array de arrays) a un array de objetos (formato PapaParse)
+            let jsonData = result.data.slice(1).map(row => {
+                let obj = {};
+                headers.forEach((h, i) => obj[h] = row[i]);
+                return obj;
+            });
+            
+            procesarDatos(jsonData);
+        } else {
+            document.getElementById('loading').innerText = "Inventario vacío o error de formato.";
+        }
+    })
+    .catch(error => {
+        console.error("Error obteniendo datos en vivo:", error);
+        document.getElementById('loading').innerText = "Error de conexión en tiempo real.";
+    })
+    .finally(() => {
+        // Zonas y Usos se actualizan poco, pueden seguir usando el CSV sin problemas de retardo grave
+        cargarUsos();
+        cargarZonas();
     });
 }
 
