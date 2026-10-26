@@ -287,8 +287,11 @@ function initKanban() {
             kanbanInstances.push(new Sortable(el, {
                 group: 'shared',
                 animation: 150,
-                delay: 200,
+                delay: 200, // Previene arrastre accidental al hacer scroll normal
                 delayOnTouchOnly: true,
+                forceFallback: true, // Crucial para arrastre vertical fluido en móviles
+                scroll: true,
+                bubbleScroll: true,
                 onEnd: procesarDrop
             }));
         }
@@ -335,7 +338,7 @@ function procesarDrop(evt) {
         obj: evt.item.dataset.obj,
         lote: evt.item.dataset.lote,
         venc: evt.item.dataset.venc,
-        vencRaw: evt.item.dataset.venc, // CORRECCIÓN: guardamos también como vencRaw
+        vencRaw: evt.item.dataset.venc,
         um: evt.item.dataset.um,
         formato: evt.item.dataset.formato,
         cxb: parseFloat(evt.item.dataset.cxb),
@@ -435,7 +438,6 @@ function ejecutarDrag() {
         if (usoActual && !usosSeleccionadosArray.includes(usoActual)) usosSeleccionadosArray.push(usoActual);
         let usoFinal = usosSeleccionadosArray.length > 0 ? usosSeleccionadosArray.join(", ") : "-";
 
-        // CORRECCIÓN: Se usa d.vencRaw en lugar de d.venc (columna 14)
         fila = [obtenerFechaHoy(), "Salida", d.cat, usoFinal, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.vencRaw, d.lote, d.origen, zona, "Aplicación PWA"];
     } else {
         // Traslado entre almacenes (Solo bultos completos)
@@ -455,7 +457,6 @@ function ejecutarDrag() {
             obs = "Devolución PWA (Vicente)";
         }
 
-        // CORRECCIÓN: Se usa d.vencRaw en lugar de d.venc (columna 14)
         fila = [obtenerFechaHoy(), "Traslado", d.cat, d.obj, d.producto, d.pa, d.um, d.formato, bultos, d.cxb, cant, "PEN", 0, 0, d.vencRaw, d.lote, d.origen, d.destino, obs];
     }
 
