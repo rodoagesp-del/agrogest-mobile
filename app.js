@@ -32,43 +32,27 @@ const ALMACENES_MAP = {
 document.addEventListener("DOMContentLoaded", initApp);
 
 // ======================================================
-// INICIALIZACIÓN Y CARGA DE DATOS (Actualizado a Tiempo Real)
+// INICIALIZACIÓN Y CARGA DE DATOS (Restaurada a CSV para evitar CORS)
 // ======================================================
 function initApp() {
     document.getElementById('loading').style.display = 'block';
-
-    fetch(WEB_APP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: "leer", sheetId: SHEET_ID_INVENTARIO }),
-        redirect: "follow", // <-- Obliga al navegador a seguir la redirección 302 de Apps Script
-        cache: "no-store"   // <-- Evita cualquier caché intermedia del navegador
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.status === "ok" && result.data && result.data.length > 1) {
-            let headers = result.data[0].map(h => String(h).trim());
-            
-            // Convertimos la matriz (array de arrays) a un array de objetos (formato PapaParse)
-            let jsonData = result.data.slice(1).map(row => {
-                let obj = {};
-                headers.forEach((h, i) => obj[h] = row[i]);
-                return obj;
-            });
-            
-            procesarDatos(jsonData);
-        } else {
-            document.getElementById('loading').innerText = "Inventario vacío o error de formato.";
+    
+    // Volvemos a usar PapaParse y el CSV porque evita bloqueos de CORS
+    // y lee la base de datos de forma estable.
+    Papa.parse(CSV_URL, {
+        download: true, 
+        header: true, 
+        skipEmptyLines: true, 
+        transformHeader: h => h.trim(),
+        complete: function(results) {
+            procesarDatos(results.data);
+            cargarUsos();
+            cargarZonas();
+        },
+        error: function(err) {
+            console.error("Error leyendo CSV:", err);
+            document.getElementById('loading').innerText = "Error de conexión al cargar inventario.";
         }
-    })
-    .catch(error => {
-        console.error("Error obteniendo datos en vivo:", error);
-        document.getElementById('loading').innerText = "Error de conexión en tiempo real.";
-    })
-    .finally(() => {
-        // Zonas y Usos se actualizan poco, pueden seguir usando el CSV sin problemas de retardo grave
-        cargarUsos();
-        cargarZonas();
     });
 }
 
@@ -485,6 +469,39 @@ function ejecutarDrag() {
     }
 
     cerrarDragModal();
+    
+    // NUEVO: Sincronización optimista en memoria
+    // Actualizamos el stock visualmente al instante para evitar el retraso de 5 min del CSV de Google.
+    if (d.destino === "Zonas de Cultivo") {
+        aplicacionesGlobal.unshift({
+            fecha: fila[0], producto: d.producto, pa: d.pa, lote: d.lote, 
+            zona: document.getElementById("dragZona").value, usos: fila[3], cantidad: cant, um: d.um
+        });
+    }
+    
+    // Restar del origen y sumar al destino en la memoria global
+    let itemOrigen = inventarioGlobal.find(i => i.producto === d.producto && i.lote === d.lote && i.almacen === d.origen);
+    if (itemOrigen) itemOrigen.stock -= cant;
+    
+    if (d.destino !== "Zonas de Cultivo") {
+        let itemDestino = inventarioGlobal.find(i => i.producto === d.producto && i.lote === d.lote && i.almacen === d.destino);
+        if (itemDestino) {
+            itemDestino.stock += cant;
+        } else {
+            // Si el producto no existía en el destino, lo creamos
+            inventarioGlobal.push({
+                producto: d.producto, pa: d.pa, cat: d.cat, obj: d.obj, lote: d.lote, 
+                vencRaw: d.vencRaw, venc: d.venc, almacen: d.destino, um: d.um, formato: d.formato, 
+                cxb: d.cxb, stock: cant
+            });
+        }
+    }
+    
+    // Limpiar restos y refrescar la pantalla inmediatamente
+    inventarioGlobal = inventarioGlobal.filter(item => item.stock > 0.001);
+    filtrarDatos();
+    
+    // Enviamos silenciosamente al Google Sheets
     enviarGoogleSheets(fila);
 }
 
