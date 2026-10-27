@@ -37,11 +37,12 @@ document.addEventListener("DOMContentLoaded", initApp);
 function initApp() {
     document.getElementById('loading').style.display = 'block';
 
-    // Ahora leemos el inventario usando Apps Script (Igual que la PC) en lugar del CSV cacheado
     fetch(WEB_APP_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: "leer", sheetId: SHEET_ID_INVENTARIO })
+        body: JSON.stringify({ action: "leer", sheetId: SHEET_ID_INVENTARIO }),
+        redirect: "follow", // <-- Obliga al navegador a seguir la redirección 302 de Apps Script
+        cache: "no-store"   // <-- Evita cualquier caché intermedia del navegador
     })
     .then(response => response.json())
     .then(result => {
