@@ -32,17 +32,17 @@ const ALMACENES_MAP = {
 document.addEventListener("DOMContentLoaded", initApp);
 
 // ======================================================
-// INICIALIZACIÓN Y CARGA DE DATOS (Restaurada a CSV para evitar CORS)
+// INICIALIZACIÓN Y CARGA DE DATOS (CSV para evitar CORS)
 // ======================================================
 function initApp() {
     document.getElementById('loading').style.display = 'block';
-    
+
     // Volvemos a usar PapaParse y el CSV porque evita bloqueos de CORS
     // y lee la base de datos de forma estable.
     Papa.parse(CSV_URL, {
-        download: true, 
-        header: true, 
-        skipEmptyLines: true, 
+        download: true,
+        header: true,
+        skipEmptyLines: true,
         transformHeader: h => h.trim(),
         complete: function(results) {
             procesarDatos(results.data);
@@ -141,11 +141,11 @@ function procesarDatos(data) {
         let cat = (row["Categoría"] || "").trim().toUpperCase();
         let obj = (row["Objetivo Fitosanitario"] || "").trim().toUpperCase();
         let lote = (row["Lote"] || "").trim().toUpperCase();
-        
+
         let vencOriginal = (row["Fecha Vencimiento"] || "").trim();
         let vencLimpia = estandarizarFechaParaSheet(vencOriginal);
         let vencVisual = formatearFechaVencimiento(vencOriginal);
-        
+
         let um = (row["Unidad Medida"] || "").trim();
         let formato = (row["Formato"] || "").trim();
 
@@ -469,20 +469,20 @@ function ejecutarDrag() {
     }
 
     cerrarDragModal();
-    
-    // NUEVO: Sincronización optimista en memoria
+
+    // Sincronización optimista en memoria
     // Actualizamos el stock visualmente al instante para evitar el retraso de 5 min del CSV de Google.
     if (d.destino === "Zonas de Cultivo") {
         aplicacionesGlobal.unshift({
-            fecha: fila[0], producto: d.producto, pa: d.pa, lote: d.lote, 
+            fecha: fila[0], producto: d.producto, pa: d.pa, lote: d.lote,
             zona: document.getElementById("dragZona").value, usos: fila[3], cantidad: cant, um: d.um
         });
     }
-    
+
     // Restar del origen y sumar al destino en la memoria global
     let itemOrigen = inventarioGlobal.find(i => i.producto === d.producto && i.lote === d.lote && i.almacen === d.origen);
     if (itemOrigen) itemOrigen.stock -= cant;
-    
+
     if (d.destino !== "Zonas de Cultivo") {
         let itemDestino = inventarioGlobal.find(i => i.producto === d.producto && i.lote === d.lote && i.almacen === d.destino);
         if (itemDestino) {
@@ -490,17 +490,17 @@ function ejecutarDrag() {
         } else {
             // Si el producto no existía en el destino, lo creamos
             inventarioGlobal.push({
-                producto: d.producto, pa: d.pa, cat: d.cat, obj: d.obj, lote: d.lote, 
-                vencRaw: d.vencRaw, venc: d.venc, almacen: d.destino, um: d.um, formato: d.formato, 
+                producto: d.producto, pa: d.pa, cat: d.cat, obj: d.obj, lote: d.lote,
+                vencRaw: d.vencRaw, venc: d.venc, almacen: d.destino, um: d.um, formato: d.formato,
                 cxb: d.cxb, stock: cant
             });
         }
     }
-    
+
     // Limpiar restos y refrescar la pantalla inmediatamente
     inventarioGlobal = inventarioGlobal.filter(item => item.stock > 0.001);
     filtrarDatos();
-    
+
     // Enviamos silenciosamente al Google Sheets
     enviarGoogleSheets(fila);
 }
@@ -643,12 +643,40 @@ function enviarGoogleSheets(filaArray) {
 }
 
 // ======================================================
-// MODAL DETALLES
+// MODAL DETALLES (con Etapa Fenológica y Dosis)
 // ======================================================
 function mostrarDetalles(prodNombre) {
     let usosProd = usosGlobal.filter(u => (u["Producto"] || "").trim().toUpperCase() === prodNombre);
     document.getElementById('modalTitle').innerText = `📋 Especificaciones:\n${prodNombre}`;
-    let html = usosProd.length === 0 ? "<p style='color:#7F8C8D; font-size:0.9rem; text-align:center;'>No hay especificaciones.</p>" : usosProd.map(u => `<div class="uso-item"><strong>🎯 ${(u["Uso_Objetivo"] || u["Uso/Objetivo"]).trim()}</strong><p>${u["Detalles"] || ""}</p></div>`).join("");
+
+    let html = "";
+    if (usosProd.length === 0) {
+        html = "<p style='color:#7F8C8D; font-size:0.9rem; text-align:center;'>No hay especificaciones registradas para este producto.</p>";
+    } else {
+        html = usosProd.map(u => {
+            let uso = (u["Uso_Objetivo"] || u["Uso/Objetivo"] || "").trim();
+            let etapa = (u["Etapa Fenológica"] || u["Etapa Fenologica"] || "-").trim();
+            let dosis = (u["Dosis"] || "-").trim();
+            let detalles = (u["Detalles"] || "-").trim();
+
+            let htmlCard = `<div class="uso-item">
+                                <strong>🎯 ${uso}</strong>`;
+
+            if (etapa !== "-" && etapa !== "") {
+                htmlCard += `<p style="color:#27AE60; font-size:0.8rem; margin-top:3px; font-weight:bold;">🌱 Etapa: <span style="font-weight:normal; color:#555;">${etapa}</span></p>`;
+            }
+            if (dosis !== "-" && dosis !== "") {
+                htmlCard += `<p style="color:#2980B9; font-size:0.8rem; margin-top:2px; font-weight:bold;">💧 Dosis: <span style="font-weight:normal; color:#555;">${dosis}</span></p>`;
+            }
+            if (detalles !== "-" && detalles !== "") {
+                htmlCard += `<p style="margin-top:5px; font-size:0.85rem; border-top: 1px dashed #ccc; padding-top:4px;">📝 ${detalles}</p>`;
+            }
+
+            htmlCard += `</div>`;
+            return htmlCard;
+        }).join("");
+    }
+
     document.getElementById('modalBody').innerHTML = html;
     document.getElementById('detallesModal').style.display = 'block';
 }
