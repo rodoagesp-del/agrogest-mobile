@@ -92,6 +92,13 @@ function cargarZonas() {
                 generarReporteCampo();
             }
             document.getElementById('loading').style.display = 'none';
+            
+            // INICIAR EL TUTORIAL INTERACTIVO UNA VEZ EL DOM TIENE DATOS
+            setTimeout(() => {
+                if (typeof iniciarTutorialInteractivo === "function") {
+                    iniciarTutorialInteractivo();
+                }
+            }, 500); 
         }
     });
 }

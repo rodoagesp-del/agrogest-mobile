@@ -1,0 +1,56 @@
+/* ================= tutorial.css ================= */
+#tut-overlay {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 9990; display: none; transition: opacity 0.3s;
+}
+
+/* Clase que se le añade al elemento real para traerlo al frente */
+.tut-highlighted {
+    position: relative !important;
+    z-index: 9995 !important;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 0 0 5px rgba(39, 174, 96, 0.5), 0 10px 25px rgba(0,0,0,0.5);
+    pointer-events: none; /* Evita que el usuario haga clic de verdad y rompa el tutorial */
+    transition: box-shadow 0.3s ease;
+}
+
+#tut-tooltip {
+    position: absolute; z-index: 9999;
+    background: white; width: 90%; max-width: 320px;
+    padding: 20px; border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+    display: none; flex-direction: column; gap: 10px;
+    border-left: 5px solid var(--primary);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.tut-title { font-size: 1.1rem; font-weight: bold; color: var(--primary); margin-bottom: 5px; }
+.tut-text { font-size: 0.9rem; color: #444; margin-bottom: 15px; line-height: 1.5; }
+.tut-buttons { display: flex; justify-content: space-between; align-items: center; }
+
+.tut-btn { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+.tut-btn-skip { background: transparent; color: #7f8c8d; }
+.tut-btn-skip:hover { color: var(--danger); }
+.tut-btn-next { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(39,174,96,0.3); }
+.tut-btn-next:hover { background: #219653; }
+
+/* Elementos para la simulación visual automática */
+.tut-fake-card {
+    position: fixed; z-index: 9998;
+    pointer-events: none;
+    box-shadow: 0 20px 30px rgba(0,0,0,0.4);
+    transform: scale(1.05) rotate(4deg);
+    opacity: 0.95;
+    transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); /* Animación suave de vuelo */
+}
+
+/* Cursor de ratón falso para simular clics y arrastres */
+#tut-cursor {
+    position: fixed; z-index: 9999; width: 35px; height: 35px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="35" height="35"><path fill="%23333" d="M11 2L2 21l8-4 4 7 3-1-4-7 9-2z"/><path fill="white" d="M11 4.5l-6 13 5.5-2.5 3.5 6 1.5-.5-3.5-6 6-1.5z"/></svg>');
+    background-size: contain; background-repeat: no-repeat;
+    pointer-events: none; display: none;
+    transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); /* Movimiento del ratón natural */
+}
