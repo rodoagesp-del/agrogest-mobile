@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agrogest-pwa-v17'; // <--- VERSIÓN ACTUALIZADA (V17)
+const CACHE_NAME = 'agrogest-pwa-v18'; // <--- VERSIÓN ACTUALIZADA (V18)
 const ASSETS = [
     './',
     './index.html',
