@@ -37,8 +37,6 @@ document.addEventListener("DOMContentLoaded", initApp);
 function initApp() {
     document.getElementById('loading').style.display = 'block';
 
-    // Volvemos a usar PapaParse y el CSV porque evita bloqueos de CORS
-    // y lee la base de datos de forma estable.
     Papa.parse(CSV_URL, {
         download: true,
         header: true,
@@ -60,8 +58,55 @@ function cargarUsos() {
     if (!USOS_CSV_URL) return;
     Papa.parse(USOS_CSV_URL, {
         download: true, header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
-        complete: function(results) { usosGlobal = results.data; }
+        complete: function(results) {
+            usosGlobal = results.data;
+            if (inventarioGlobal.length > 0) {
+                filtrarDatos();
+            }
+        }
     });
+}
+
+function obtenerPeriodoCarencia(prodNombre) {
+    if (!prodNombre || !usosGlobal || usosGlobal.length === 0) return null;
+
+    const normalizar = (txt) => (txt || "").trim().toUpperCase().replace(/\s+/g, " ");
+    const target = normalizar(prodNombre);
+
+    const filasProd = usosGlobal.filter(u => normalizar(u["Producto"]) === target);
+    for (let u of filasProd) {
+        let detalles = (u["Detalles"] || "").trim();
+        if (!detalles) continue;
+
+        let match = detalles.match(/p?er[íi]odo\s+de\s+carencia(?:\s*\([^)]*\))?\s*:\s*([^\n\r;]+)/i);
+        if (!match) continue;
+
+        let valorOriginal = match[1].trim();
+        let val = valorOriginal.split(/,\s*LMR|\(/i)[0].trim();
+        val = val.replace(/["'.,;\s]+$/, "").trim();
+
+        if (/variable/i.test(val)) {
+            let rango = valorOriginal.match(/(\d+\s*(?:a|y|-)\s*\d+\s*d[íi]as?)/i);
+            if (rango) return rango[1].replace(/\s+y\s+/i, " a ").replace(/d[íi]as/i, "días");
+            return "Variable";
+        }
+
+        if (/para\s+\w+/i.test(val)) {
+            let nums = val.match(/\d+/g);
+            if (nums && nums.length >= 2) return `${nums[0]} / ${nums[1]} días`;
+        }
+
+        val = val.replace(/\s+en\s+palto.*$/i, "").trim();
+
+        if (/^\d+$/.test(val)) {
+            val = `${val} días`;
+        }
+
+        val = val.replace(/\bd[íi]as\b/gi, "días").replace(/\bd[íi]a\b/gi, "día");
+
+        if (val) return val;
+    }
+    return null;
 }
 
 function cargarZonas() {
@@ -92,13 +137,12 @@ function cargarZonas() {
                 generarReporteCampo();
             }
             document.getElementById('loading').style.display = 'none';
-            
-            // INICIAR EL TUTORIAL INTERACTIVO UNA VEZ EL DOM TIENE DATOS
+
             setTimeout(() => {
                 if (typeof iniciarTutorialInteractivo === "function") {
                     iniciarTutorialInteractivo();
                 }
-            }, 500); 
+            }, 500);
         }
     });
 }
@@ -109,7 +153,6 @@ function normalizarAlmacen(alm) {
     return ALMACENES_MAP[upper] || upper;
 }
 
-// Limpiamos los datos a formato DD/MM/YYYY para que suban bien limpios al Excel
 function estandarizarFechaParaSheet(fechaStr) {
     if (!fechaStr || fechaStr === "-" || fechaStr === "DD/MM/AAAA") return "";
     if (fechaStr.includes("T")) {
@@ -241,6 +284,15 @@ function filtrarDatos() {
             let badgeClass = item.almacen.includes("San Borja") ? "san-borja" : item.almacen.includes("Quilmana") ? "quilmana" : "fundo";
             let datasetString = `data-prod="${item.producto.replace(/"/g, '&quot;')}" data-pa="${item.pa}" data-cat="${item.cat}" data-obj="${item.obj}" data-lote="${item.lote}" data-venc="${item.vencRaw}" data-um="${item.um}" data-formato="${item.formato}" data-cxb="${item.cxb}" data-stock="${item.stock}"`;
 
+            let carencia = obtenerPeriodoCarencia(item.producto);
+            let carenciaHTML = "";
+            if (carencia) {
+                let claseCarencia = /^0\s*d[íi]as?$/i.test(carencia) ? "carencia-cero" : "carencia-alerta";
+                carenciaHTML = `<div class="carencia-badge ${claseCarencia}" title="Periodo de Carencia">PC: ${carencia}</div>`;
+            } else {
+                carenciaHTML = `<div class="carencia-badge carencia-nd" title="Periodo de Carencia no registrado">PC: -</div>`;
+            }
+
             let cardHTML = `
                 <div class="card" ${datasetString} style="position: relative;">
                     <div class="icono-info" onclick="mostrarDetalles('${item.producto.replace(/'/g, "\\'")}')" style="cursor:pointer; z-index:10;">ℹ️</div>
@@ -250,9 +302,10 @@ function filtrarDatos() {
                             <span class="badge ${badgeClass}">${item.almacen.replace('Almacén ', '').replace('de ', '')}</span><br>
                             <span style="font-size:0.8rem; color:#7f8c8d; display:block; margin-top:5px;">Lote: ${item.lote || '-'}</span>
                         </div>
-                        <div>
+                        <div class="card-right">
                             <div class="stock-value">${item.stock.toFixed(2)} ${item.um}</div>
                             <div class="fecha-venc" style="color: ${item.venc === '-' ? '#7f8c8d' : 'var(--danger)'}">Vence: ${item.venc}</div>
+                            ${carenciaHTML}
                         </div>
                     </div>
                 </div>`;
@@ -477,8 +530,6 @@ function ejecutarDrag() {
 
     cerrarDragModal();
 
-    // Sincronización optimista en memoria
-    // Actualizamos el stock visualmente al instante para evitar el retraso de 5 min del CSV de Google.
     if (d.destino === "Zonas de Cultivo") {
         aplicacionesGlobal.unshift({
             fecha: fila[0], producto: d.producto, pa: d.pa, lote: d.lote,
@@ -486,7 +537,6 @@ function ejecutarDrag() {
         });
     }
 
-    // Restar del origen y sumar al destino en la memoria global
     let itemOrigen = inventarioGlobal.find(i => i.producto === d.producto && i.lote === d.lote && i.almacen === d.origen);
     if (itemOrigen) itemOrigen.stock -= cant;
 
@@ -495,7 +545,6 @@ function ejecutarDrag() {
         if (itemDestino) {
             itemDestino.stock += cant;
         } else {
-            // Si el producto no existía en el destino, lo creamos
             inventarioGlobal.push({
                 producto: d.producto, pa: d.pa, cat: d.cat, obj: d.obj, lote: d.lote,
                 vencRaw: d.vencRaw, venc: d.venc, almacen: d.destino, um: d.um, formato: d.formato,
@@ -504,11 +553,9 @@ function ejecutarDrag() {
         }
     }
 
-    // Limpiar restos y refrescar la pantalla inmediatamente
     inventarioGlobal = inventarioGlobal.filter(item => item.stock > 0.001);
     filtrarDatos();
 
-    // Enviamos silenciosamente al Google Sheets
     enviarGoogleSheets(fila);
 }
 

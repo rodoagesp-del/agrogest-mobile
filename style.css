@@ -30,16 +30,44 @@ main { padding: 15px; }
 
 .card { background: var(--white); border-radius: 8px; padding: 15px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-left: 4px solid var(--primary); }
 .card.campo { border-left-color: #8E44AD; }
-.card-title { font-weight: bold; font-size: 1.1rem; color: var(--dark); margin-bottom: 5px; }
-.card-subtitle { font-size: 0.85rem; color: #7F8C8D; margin-bottom: 10px; }
-.card-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem; }
+.card-title { font-weight: bold; font-size: 1.05rem; color: var(--dark); margin-bottom: 4px; padding-right: 30px; }
+.card-subtitle { font-size: 0.85rem; color: #7F8C8D; margin-bottom: 10px; padding-right: 30px; }
+.card-details { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; font-size: 0.9rem; }
+.card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; background: #EEE; color: #555; }
 .badge.san-borja { background: #FDEBD0; color: #D35400; }
 .badge.quilmana { background: #FCF3CF; color: #B7950B; }
 .badge.fundo { background: #D5F5E3; color: #1E8449; }
 
-.stock-value { font-size: 1.2rem; font-weight: bold; color: var(--dark); text-align: right; }
-.fecha-venc { font-size: 0.8rem; text-align: right; margin-top: 5px; }
+.stock-value { font-size: 1.15rem; font-weight: bold; color: var(--dark); text-align: right; line-height: 1.1; }
+.fecha-venc { font-size: 0.78rem; text-align: right; }
+
+.carencia-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: bold;
+    text-align: right;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+.carencia-badge.carencia-alerta {
+    background: #FEF5E7;
+    color: #B9770E;
+    border: 1px solid #FAD7A0;
+}
+.carencia-badge.carencia-cero {
+    background: #E8F8F5;
+    color: #1E8449;
+    border: 1px solid #A3E4D7;
+}
+.carencia-badge.carencia-nd {
+    background: #F2F4F4;
+    color: #7F8C8D;
+    border: 1px solid #E5E8E8;
+    font-weight: normal;
+}
 
 /* ================= Modal de Detalles ================= */
 .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(44, 62, 80, 0.7); backdrop-filter: blur(3px); }
@@ -55,19 +83,17 @@ main { padding: 15px; }
 
 /* Fija la altura máxima y estructura interna del modal de especificaciones */
 #detallesModal .modal-content {
-    max-height: 85vh; /* Evita que la ventana supere el límite de la pantalla */
+    max-height: 85vh;
     display: flex;
     flex-direction: column;
 }
 
-/* Activa la barra de arrastre exclusiva para la zona de texto */
 #modalBody {
     overflow-y: auto;
-    padding-right: 10px; /* Evita que las letras choquen con la barra */
-    flex-grow: 1; /* Permite que el texto ocupe el espacio disponible */
+    padding-right: 10px;
+    flex-grow: 1;
 }
 
-/* Diseño personalizado del Scrollbar para PC y Móvil */
 #modalBody::-webkit-scrollbar {
     width: 6px;
 }
@@ -157,9 +183,9 @@ main { padding: 15px; }
 @keyframes simulacionDrag {
     0%, 15% { left: 15px; top: 35px; transform: scale(1); }
     25% { transform: scale(1.1) rotate(4deg); }
-    40% { left: calc(33% + 10px); top: 35px; transform: scale(1); border-left-color: #27AE60;} /* Drop Fundo */
+    40% { left: calc(33% + 10px); top: 35px; transform: scale(1); border-left-color: #27AE60;}
     55% { left: calc(33% + 10px); top: 35px; transform: scale(1); }
     65% { transform: scale(1.1) rotate(-4deg); }
-    80% { left: calc(66% + 15px); top: 35px; transform: scale(1); border-left-color: #8E44AD; } /* Drop Campo */
+    80% { left: calc(66% + 15px); top: 35px; transform: scale(1); border-left-color: #8E44AD; }
     100% { left: calc(66% + 15px); top: 35px; transform: scale(1); opacity: 0; }
 }

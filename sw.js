@@ -1,4 +1,4 @@
-const CACHE_NAME = 'agrogest-pwa-v18'; // <--- VERSIÓN ACTUALIZADA (V18)
+const CACHE_NAME = 'agrogest-pwa-v19'; // <--- VERSIÓN ACTUALIZADA (V19)
 const ASSETS = [
     './',
     './index.html',
@@ -32,10 +32,8 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-    // CORRECCIÓN VITAL: Si no es GET, abortamos la intercepción del Service Worker
-    // y dejamos que el navegador haga la petición real de forma nativa.
     if (event.request.method !== 'GET') {
-        return; // <-- Retorno limpio, sin llamar a event.respondWith()
+        return; // No interceptar peticiones POST
     }
 
     event.respondWith(
